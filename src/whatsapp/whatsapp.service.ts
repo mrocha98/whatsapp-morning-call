@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { InjectConnection } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { QRCodeService } from 'src/qr-code/qr-code.service';
 import {
   Client,
@@ -8,15 +8,15 @@ import {
   Message,
   MessageContent,
   MessageSendOptions,
-  // RemoteAuth,
-  // Store,
 } from 'whatsapp-web.js';
-// import { MongoStore } from 'wwebjs-mongo';
+import { User } from './schemas';
 
 @Injectable()
 export class WhatsappService {
+  private readonly logger = new Logger(WhatsappService.name);
+
   constructor(
-    @InjectConnection() private readonly connection: Connection,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly qrCodeService: QRCodeService,
   ) {}
 
@@ -24,16 +24,12 @@ export class WhatsappService {
 
   async initialize(): Promise<void> {
     if (WhatsappService._client !== null) {
+      this.logger.log('Whatsapp Client already initialized');
       return;
     }
-
-    // const store = new MongoStore({ mongoose: this.connection.base }) as Store;
+    this.logger.log('Initializing Whatsapp Client...');
 
     WhatsappService._client = new Client({
-      // authStrategy: new RemoteAuth({
-      //   store,
-      //   backupSyncIntervalMs: 300000,
-      // }),
       authStrategy: new LocalAuth({
         dataPath: 'wwebjs-local',
       }),
@@ -42,23 +38,45 @@ export class WhatsappService {
       },
     })
       .on('ready', () => {
-        console.info('Whatsapp Client is ready!');
+        this.logger.log('Whatsapp Client is ready!');
       })
       .on('qr', (qr) => {
+        this.logger.log('QR Code generated, please scan');
         this.qrCodeService.generate(qr);
       })
-      .on('message_create', (message) => {
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      .on('message_create', async (message) => {
         if (message.fromMe) {
           return;
         }
-        console.log(`------ ID ------`);
-        console.log(`_serialized: ${message.id._serialized}`);
-        console.log(`id: ${message.id.id}`);
-        console.log(`remote: ${message.id.remote}`);
-        console.log(`----------------`);
+        // console.log(`------ ID ------`);
+        // console.log(`_serialized: ${message.id._serialized}`);
+        // console.log(`id: ${message.id.id}`);
+        // console.log(`remote: ${message.id.remote}`);
+        // console.log(`----------------`);
+
         if (message.body === '/start') {
-          console.log(`/start recebido`);
-          // TODO : salvar "id" e usuário no banco, tb ver se tem como salvar contato (https://github.com/pedroslopez/whatsapp-web.js/issues/532)
+          const { phone, whatsappId } =
+            await this.extractPhoneNumberAndIdsFromMessage(message);
+          const user = await this.userModel.exists({
+            phoneNumber: phone.number,
+          });
+          const userAlreadyExists = !!user?._id;
+          if (userAlreadyExists) {
+            return;
+          }
+
+          await this.userModel.create({
+            phoneNumber: phone.number,
+            formattedPhoneNumber: phone.formatted,
+            lid: whatsappId.lid,
+            pn: whatsappId.pn,
+          });
+
+          await message.reply(
+            '✅ Número cadastrado com sucesso! Você começará a receber os alertas diariamente 🚀',
+          );
+          // TODO : ver se tem como salvar contato (https://github.com/pedroslopez/whatsapp-web.js/issues/532)
         }
         if (message.body === '/help') {
           console.log(`/help recebido`);
@@ -75,5 +93,23 @@ export class WhatsappService {
     options?: MessageSendOptions,
   ): Promise<Message> {
     return await WhatsappService._client.sendMessage(chatId, content, options);
+  }
+
+  private async extractPhoneNumberAndIdsFromMessage(message: Message) {
+    const [contactLidAndPhone] =
+      await WhatsappService._client.getContactLidAndPhone([message.id.remote]);
+    const formatted = await WhatsappService._client.getFormattedNumber(
+      contactLidAndPhone.pn,
+    );
+    const phoneNumber = formatted.replaceAll(/\D/g, '');
+
+    return {
+      phone: { number: phoneNumber, formatted },
+      whatsappId: contactLidAndPhone,
+    };
+  }
+
+  async getUserFromPhoneNumber(phoneNumber: string) {
+    return await this.userModel.findOne({ phoneNumber });
   }
 }
