@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model } from 'mongoose';
+import * as mongoose from 'mongoose';
 import { QRCodeService } from 'src/qr-code/qr-code.service';
 import {
   Client,
-  LocalAuth,
   Message,
   MessageContent,
   MessageSendOptions,
+  RemoteAuth,
+  Store,
 } from 'whatsapp-web.js';
 import { User } from './schemas';
+import { MongoStore } from 'wwebjs-mongo';
 
 @Injectable()
 export class WhatsappService {
@@ -18,6 +21,7 @@ export class WhatsappService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly qrCodeService: QRCodeService,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
 
   private static _client: Client | null = null;
@@ -29,9 +33,23 @@ export class WhatsappService {
     }
     this.logger.log('Initializing Whatsapp Client...');
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const mongoStore = new MongoStore({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      mongoose: {
+        connection: this.connection,
+        Schema: this.connection.base.Schema,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        model: this.connection.model.bind(this.connection),
+        Promise: Promise,
+        mongo: mongoose.mongo,
+      } as any,
+    }) as Store;
+
     WhatsappService._client = new Client({
-      authStrategy: new LocalAuth({
-        dataPath: 'wwebjs-local',
+      authStrategy: new RemoteAuth({
+        store: mongoStore,
+        backupSyncIntervalMs: 300000,
       }),
       puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -49,12 +67,6 @@ export class WhatsappService {
         if (message.fromMe) {
           return;
         }
-        // console.log(`------ ID ------`);
-        // console.log(`_serialized: ${message.id._serialized}`);
-        // console.log(`id: ${message.id.id}`);
-        // console.log(`remote: ${message.id.remote}`);
-        // console.log(`----------------`);
-
         if (message.body === '/start') {
           const { phone, whatsappId } =
             await this.extractPhoneNumberAndIdsFromMessage(message);

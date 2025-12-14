@@ -400,5 +400,6 @@ dist
 .serverless/**/*.zip
 
 ## wwebjs
+.wwebjs_auth/
 .wwebjs_cache/
 wwebjs-local/
