@@ -68,31 +68,10 @@ export class WhatsappService {
           return;
         }
         if (message.body === '/start') {
-          const { phone, whatsappId } =
-            await this.extractPhoneNumberAndIdsFromMessage(message);
-          const user = await this.userModel.exists({
-            phoneNumber: phone.number,
-          });
-          const userAlreadyExists = !!user?._id;
-          if (userAlreadyExists) {
-            return;
-          }
-
-          await this.userModel.create({
-            phoneNumber: phone.number,
-            formattedPhoneNumber: phone.formatted,
-            lid: whatsappId.lid,
-            pn: whatsappId.pn,
-          });
-
-          await message.reply(
-            '✅ Número cadastrado com sucesso! Você começará a receber os alertas diariamente 🚀',
-          );
-          // TODO : ver se tem como salvar contato (https://github.com/pedroslopez/whatsapp-web.js/issues/532)
+          await this.handleStartCommand(message);
         }
         if (message.body === '/help') {
-          console.log(`/help recebido`);
-          // TODO : implementar envio de mensagem explicando o bot
+          await this.handleHelpCommand(message);
         }
       });
 
@@ -123,5 +102,35 @@ export class WhatsappService {
 
   async getUserFromPhoneNumber(phoneNumber: string) {
     return await this.userModel.findOne({ phoneNumber });
+  }
+
+  private async handleStartCommand(message: Message) {
+    const { phone, whatsappId } =
+      await this.extractPhoneNumberAndIdsFromMessage(message);
+    const user = await this.userModel.exists({
+      phoneNumber: phone.number,
+    });
+    const userAlreadyExists = !!user?._id;
+    if (userAlreadyExists) {
+      return;
+    }
+
+    await this.userModel.create({
+      phoneNumber: phone.number,
+      formattedPhoneNumber: phone.formatted,
+      lid: whatsappId.lid,
+      pn: whatsappId.pn,
+    });
+
+    await message.reply(
+      '✅ Número cadastrado com sucesso! Você começará a receber os alertas diariamente 🚀',
+    );
+    // TODO : ver se tem como salvar contato (https://github.com/pedroslopez/whatsapp-web.js/issues/532)
+  }
+
+  private async handleHelpCommand(message: Message) {
+    await message.reply(
+      'Envie */start* para começar a receber seus alertas diários. Caso já tenha enviado é só aguardar 😉',
+    );
   }
 }
