@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { WhatsappService } from './whatsapp/whatsapp.service';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { WhatsappService } from './whatsapp/whatsapp.service';
         return { uri };
       },
     }),
+    AuthModule,
     WhatsappModule,
   ],
 })

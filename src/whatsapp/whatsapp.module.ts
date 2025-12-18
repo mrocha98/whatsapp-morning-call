@@ -3,12 +3,22 @@ import { WhatsappService } from './whatsapp.service';
 import { WhatsappControllerV1 } from './whatsapp.controller';
 import { QRCodeModule } from 'src/qr-code/qr-code.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from './schemas';
+import {
+  SentMessageLog,
+  SentMessageLogSchema,
+  User,
+  UserSchema,
+} from './schemas';
+import { VoompApiModule } from 'src/voomp-api/voomp-api.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: SentMessageLog.name, schema: SentMessageLogSchema },
+    ]),
     QRCodeModule,
+    VoompApiModule,
   ],
   exports: [WhatsappService],
   providers: [WhatsappService],

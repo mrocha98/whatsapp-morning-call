@@ -11,8 +11,10 @@ import {
   RemoteAuth,
   Store,
 } from 'whatsapp-web.js';
-import { User } from './schemas';
+import { SentMessageLog, User } from './schemas';
 import { MongoStore } from 'wwebjs-mongo';
+import { firstValueFrom } from 'rxjs';
+import { VoompApiService } from 'src/voomp-api/voomp-api.service';
 
 @Injectable()
 export class WhatsappService {
@@ -20,8 +22,11 @@ export class WhatsappService {
 
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(SentMessageLog.name)
+    private readonly sentMessageLogModel: Model<SentMessageLog>,
     private readonly qrCodeService: QRCodeService,
     @InjectConnection() private readonly connection: Connection,
+    private readonly voompApiService: VoompApiService,
   ) {}
 
   private static _client: Client | null = null;
@@ -69,9 +74,11 @@ export class WhatsappService {
         }
         if (message.body === '/start') {
           await this.handleStartCommand(message);
+          return;
         }
         if (message.body === '/help') {
           await this.handleHelpCommand(message);
+          return;
         }
       });
 
@@ -115,6 +122,13 @@ export class WhatsappService {
       return;
     }
 
+    await firstValueFrom(
+      this.voompApiService.webhookWhatsappAlertsActivation({
+        phoneNumber: phone.number,
+        active: true,
+      }),
+    );
+
     await this.userModel.create({
       phoneNumber: phone.number,
       formattedPhoneNumber: phone.formatted,
@@ -125,12 +139,21 @@ export class WhatsappService {
     await message.reply(
       '✅ Número cadastrado com sucesso! Você começará a receber os alertas diariamente 🚀',
     );
-    // TODO : ver se tem como salvar contato (https://github.com/pedroslopez/whatsapp-web.js/issues/532)
+
+    await WhatsappService._client.saveOrEditAddressbookContact(
+      phone.number,
+      Date.now().toString(36),
+      Date.now().toString(16),
+    );
   }
 
   private async handleHelpCommand(message: Message) {
     await message.reply(
       'Envie */start* para começar a receber seus alertas diários. Caso já tenha enviado é só aguardar 😉',
     );
+  }
+
+  async saveSentMessageLog(message: Message, phoneNumber: string) {
+    await this.sentMessageLogModel.create({ phoneNumber, text: message.body });
   }
 }

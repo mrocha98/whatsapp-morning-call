@@ -16,6 +16,7 @@ async function bootstrap() {
     .setTitle('Whatsapp Morning Call')
     .setDescription('Equipe BugBusters - Hackathon Voomp 2025')
     .setVersion('1.0')
+    .addBasicAuth()
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, documentFactory);

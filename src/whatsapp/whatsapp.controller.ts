@@ -4,11 +4,16 @@ import {
   Controller,
   Get,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { WhatsappService } from './whatsapp.service';
 import { SendMessageDTO } from './dtos';
 import { ConfigService } from '@nestjs/config';
+import { ApiBasicAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 
+@ApiBasicAuth()
+@UseGuards(AuthGuard('basic'))
 @Controller({ version: '1', path: '/whatsapp' })
 export class WhatsappControllerV1 {
   constructor(
@@ -25,6 +30,8 @@ export class WhatsappControllerV1 {
       throw new BadRequestException('user must send /start');
     }
     const message = await this.whatsappService.sendMessage(user.lid, body.text);
+
+    await this.whatsappService.saveSentMessageLog(message, body.phoneNumber);
 
     return { id: message.id.remote, phoneNumber: body.phoneNumber };
   }
