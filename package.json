@@ -1,8 +1,8 @@
 {
-  "name": "nest-typescript-starter",
+  "name": "whatsapp-morning-call",
   "private": true,
   "version": "1.0.0",
-  "description": "Nest TypeScript starter repository",
+  "description": "voomp hackathon 2025 - equipe bugbusters",
   "license": "MIT",
   "scripts": {
     "build": "nest build",

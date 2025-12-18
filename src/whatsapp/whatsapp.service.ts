@@ -57,7 +57,14 @@ export class WhatsappService {
         backupSyncIntervalMs: 300000,
       }),
       puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--single-process',
+        ],
       },
     })
       .on('ready', () => {
