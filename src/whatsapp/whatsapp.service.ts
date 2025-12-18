@@ -63,7 +63,9 @@ export class WhatsappService {
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
-          '--single-process',
+          '--disable-extensions',
+          '--no-zygote',
+          '--disable-gpu',
         ],
       },
     })
