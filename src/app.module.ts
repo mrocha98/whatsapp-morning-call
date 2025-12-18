@@ -1,4 +1,9 @@
-import { Module, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  Logger,
+  Module,
+  OnApplicationBootstrap,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
@@ -23,10 +28,19 @@ import { AuthModule } from './auth/auth.module';
     WhatsappModule,
   ],
 })
-export class AppModule implements OnApplicationBootstrap {
+export class AppModule
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
+  private readonly logger = new Logger(AppModule.name);
+
   constructor(private readonly whatsappService: WhatsappService) {}
 
   async onApplicationBootstrap() {
     await this.whatsappService.initialize();
+  }
+
+  async onApplicationShutdown(signal?: string) {
+    this.logger.log(`Application received shutdown signal: ${signal}`);
+    await this.whatsappService.close();
   }
 }

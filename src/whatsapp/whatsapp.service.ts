@@ -156,4 +156,17 @@ export class WhatsappService {
   async saveSentMessageLog(message: Message, phoneNumber: string) {
     await this.sentMessageLogModel.create({ phoneNumber, text: message.body });
   }
+
+  async close() {
+    if (WhatsappService._client) {
+      this.logger.log('Closing Whatsapp Client...');
+      try {
+        await WhatsappService._client.destroy();
+        WhatsappService._client = null;
+        this.logger.log('Whatsapp Client closed successfully');
+      } catch (error) {
+        this.logger.error('Failed to close Whatsapp Client', error);
+      }
+    }
+  }
 }
